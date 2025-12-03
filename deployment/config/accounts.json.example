@@ -1,0 +1,156 @@
+{
+  "cloudTeamEmail": "cloud-team@example.com",
+  "assumeRoleName": "OrganizationAccountAccessRole",
+  "accounts": [
+    {
+      "teamName": "team-01",
+      "accountId": "123456789012",
+      "budgetLimit": 500,
+      "teamEmail": "team-01@hackathon.example.com"
+    },
+    {
+      "teamName": "team-02",
+      "accountId": "123456789013",
+      "budgetLimit": 500,
+      "teamEmail": "team-02@hackathon.example.com"
+    },
+    {
+      "teamName": "team-03",
+      "accountId": "123456789014",
+      "budgetLimit": 500,
+      "teamEmail": "team-03@hackathon.example.com"
+    },
+    {
+      "teamName": "team-04",
+      "accountId": "123456789015",
+      "budgetLimit": 500,
+      "teamEmail": "team-04@hackathon.example.com"
+    },
+    {
+      "teamName": "team-05",
+      "accountId": "123456789016",
+      "budgetLimit": 500,
+      "teamEmail": "team-05@hackathon.example.com"
+    },
+    {
+      "teamName": "team-06",
+      "accountId": "123456789017",
+      "budgetLimit": 500,
+      "teamEmail": "team-06@hackathon.example.com"
+    },
+    {
+      "teamName": "team-07",
+      "accountId": "123456789018",
+      "budgetLimit": 500,
+      "teamEmail": "team-07@hackathon.example.com"
+    },
+    {
+      "teamName": "team-08",
+      "accountId": "123456789019",
+      "budgetLimit": 500,
+      "teamEmail": "team-08@hackathon.example.com"
+    },
+    {
+      "teamName": "team-09",
+      "accountId": "123456789020",
+      "budgetLimit": 500,
+      "teamEmail": "team-09@hackathon.example.com"
+    },
+    {
+      "teamName": "team-10",
+      "accountId": "123456789021",
+      "budgetLimit": 500,
+      "teamEmail": "team-10@hackathon.example.com"
+    },
+    {
+      "teamName": "team-11",
+      "accountId": "123456789022",
+      "budgetLimit": 500,
+      "teamEmail": "team-11@hackathon.example.com"
+    },
+    {
+      "teamName": "team-12",
+      "accountId": "123456789023",
+      "budgetLimit": 500,
+      "teamEmail": "team-12@hackathon.example.com"
+    },
+    {
+      "teamName": "team-13",
+      "accountId": "123456789024",
+      "budgetLimit": 500,
+      "teamEmail": "team-13@hackathon.example.com"
+    },
+    {
+      "teamName": "team-14",
+      "accountId": "123456789025",
+      "budgetLimit": 500,
+      "teamEmail": "team-14@hackathon.example.com"
+    },
+    {
+      "teamName": "team-15",
+      "accountId": "123456789026",
+      "budgetLimit": 500,
+      "teamEmail": "team-15@hackathon.example.com"
+    },
+    {
+      "teamName": "team-16",
+      "accountId": "123456789027",
+      "budgetLimit": 500,
+      "teamEmail": "team-16@hackathon.example.com"
+    },
+    {
+      "teamName": "team-17",
+      "accountId": "123456789028",
+      "budgetLimit": 500,
+      "teamEmail": "team-17@hackathon.example.com"
+    },
+    {
+      "teamName": "team-18",
+      "accountId": "123456789029",
+      "budgetLimit": 500,
+      "teamEmail": "team-18@hackathon.example.com"
+    },
+    {
+      "teamName": "team-19",
+      "accountId": "123456789030",
+      "budgetLimit": 500,
+      "teamEmail": "team-19@hackathon.example.com"
+    },
+    {
+      "teamName": "team-20",
+      "accountId": "123456789031",
+      "budgetLimit": 500,
+      "teamEmail": "team-20@hackathon.example.com"
+    },
+    {
+      "teamName": "team-21",
+      "accountId": "123456789032",
+      "budgetLimit": 500,
+      "teamEmail": "team-21@hackathon.example.com"
+    },
+    {
+      "teamName": "team-22",
+      "accountId": "123456789033",
+      "budgetLimit": 500,
+      "teamEmail": "team-22@hackathon.example.com"
+    },
+    {
+      "teamName": "team-23",
+      "accountId": "123456789034",
+      "budgetLimit": 500,
+      "teamEmail": "team-23@hackathon.example.com"
+    },
+    {
+      "teamName": "team-24",
+      "accountId": "123456789035",
+      "budgetLimit": 500,
+      "teamEmail": "team-24@hackathon.example.com"
+    },
+    {
+      "teamName": "team-25",
+      "accountId": "123456789036",
+      "budgetLimit": 500,
+      "teamEmail": "team-25@hackathon.example.com"
+    }
+  ]
+}

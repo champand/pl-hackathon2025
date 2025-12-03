@@ -1,0 +1,299 @@
+# CloudFormation Guard Rules for Hackathon Resource Limits
+# These rules enforce resource size and cost controls
+
+#
+# EC2 Instance Type Restrictions
+#
+rule ec2_instance_type_check when
+    resourceType == 'AWS::EC2::Instance' {
+
+    # Deny very large instance types
+    Properties.InstanceType NOT IN [
+        /.*\.16xlarge/,
+        /.*\.18xlarge/,
+        /.*\.24xlarge/,
+        /.*\.32xlarge/,
+        /.*\.56xlarge/,
+        /.*\.112xlarge/,
+        /.*\.metal/,
+        /u-.*/,
+        /x1.*/,
+        /x2.*/,
+        /z1d\..*/
+    ]
+
+    # Deny expensive GPU instances
+    Properties.InstanceType NOT IN [
+        'p2.8xlarge',
+        'p2.16xlarge',
+        'p3.8xlarge',
+        'p3.16xlarge',
+        'p3dn.24xlarge',
+        'p4d.24xlarge',
+        'p4de.24xlarge',
+        'p5.48xlarge',
+        'g4dn.8xlarge',
+        'g4dn.12xlarge',
+        'g4dn.16xlarge',
+        'g4dn.metal',
+        'g5.12xlarge',
+        'g5.16xlarge',
+        'g5.24xlarge',
+        'g5.48xlarge'
+    ]
+
+    <<
+        Violation: EC2 instance type is not allowed. Use smaller instance types.
+        Allowed GPU instances: g4dn.xlarge, g4dn.2xlarge, g4dn.4xlarge, p3.2xlarge
+        Allowed general purpose: t2.*, t3.*, m5.large to m5.4xlarge, c5.large to c5.4xlarge
+    >>
+}
+
+#
+# RDS Instance Type Restrictions
+#
+rule rds_instance_type_check when
+    resourceType == 'AWS::RDS::DBInstance' {
+
+    Properties.DBInstanceClass NOT IN [
+        /db\..*\.8xlarge/,
+        /db\..*\.12xlarge/,
+        /db\..*\.16xlarge/,
+        /db\..*\.24xlarge/,
+        /db\..*\.32xlarge/
+    ]
+
+    <<
+        Violation: RDS instance class is too large. Use instance classes up to 4xlarge only.
+        Allowed: db.t3.*, db.t2.*, db.m5.large to db.m5.4xlarge
+    >>
+}
+
+#
+# OpenSearch Domain Restrictions
+#
+rule opensearch_instance_type_check when
+    resourceType == 'AWS::OpenSearchService::Domain' {
+
+    Properties.ClusterConfig.InstanceType IN [
+        't3.small.search',
+        't3.medium.search',
+        't2.small.search',
+        't2.medium.search',
+        'm5.large.search',
+        'm5.xlarge.search'
+    ]
+
+    <<
+        Violation: OpenSearch instance type is not allowed. Use t3.small, t3.medium, or small m5 instances only.
+    >>
+}
+
+#
+# ElastiCache Node Type Restrictions
+#
+rule elasticache_node_type_check when
+    resourceType IN ['AWS::ElastiCache::CacheCluster', 'AWS::ElastiCache::ReplicationGroup'] {
+
+    Properties.CacheNodeType IN [
+        'cache.t2.micro',
+        'cache.t2.small',
+        'cache.t2.medium',
+        'cache.t3.micro',
+        'cache.t3.small',
+        'cache.t3.medium',
+        'cache.t4g.micro',
+        'cache.t4g.small',
+        'cache.t4g.medium',
+        'cache.m5.large',
+        'cache.m5.xlarge',
+        'cache.r5.large',
+        'cache.r5.xlarge'
+    ]
+
+    <<
+        Violation: ElastiCache node type is not allowed. Use t2, t3, t4g, or small m5/r5 instances only.
+    >>
+}
+
+#
+# SageMaker Instance Type Restrictions
+#
+rule sagemaker_notebook_instance_type_check when
+    resourceType == 'AWS::SageMaker::NotebookInstance' {
+
+    Properties.InstanceType NOT IN [
+        /ml\..*\.8xlarge/,
+        /ml\..*\.12xlarge/,
+        /ml\..*\.16xlarge/,
+        /ml\..*\.24xlarge/,
+        /ml\..*\.32xlarge/,
+        'ml.p3.8xlarge',
+        'ml.p3.16xlarge',
+        'ml.p3dn.24xlarge',
+        'ml.p4d.24xlarge',
+        'ml.p4de.24xlarge',
+        'ml.p5.48xlarge'
+    ]
+
+    <<
+        Violation: SageMaker instance type is not allowed. Use smaller instance types.
+        Allowed GPU: ml.g4dn.xlarge, ml.g4dn.2xlarge, ml.p3.2xlarge
+    >>
+}
+
+#
+# EKS Node Group Restrictions
+#
+rule eks_nodegroup_instance_type_check when
+    resourceType == 'AWS::EKS::Nodegroup' {
+
+    Properties.InstanceTypes[*] NOT IN [
+        /.*\.8xlarge/,
+        /.*\.12xlarge/,
+        /.*\.16xlarge/,
+        /.*\.24xlarge/,
+        /.*\.32xlarge/,
+        /p2\..*/,
+        /p3\..*/,
+        /p4\..*/,
+        /p5\..*/,
+        'g4dn.8xlarge',
+        'g4dn.12xlarge',
+        'g4dn.16xlarge',
+        'g5.8xlarge',
+        'g5.12xlarge',
+        'g5.16xlarge',
+        'g5.24xlarge',
+        'g5.48xlarge'
+    ]
+
+    <<
+        Violation: EKS node group instance type is not allowed. Use smaller instance types.
+    >>
+}
+
+#
+# Lambda Memory Restrictions
+#
+rule lambda_memory_check when
+    resourceType == 'AWS::Lambda::Function' {
+
+    Properties.MemorySize <= 3008
+
+    <<
+        Violation: Lambda function memory size is too large. Maximum allowed: 3008 MB.
+    >>
+}
+
+#
+# DynamoDB Provisioned Capacity Restrictions
+#
+rule dynamodb_provisioned_capacity_check when
+    resourceType == 'AWS::DynamoDB::Table'
+    Properties.BillingMode == 'PROVISIONED' {
+
+    Properties.ProvisionedThroughput.ReadCapacityUnits <= 100
+    Properties.ProvisionedThroughput.WriteCapacityUnits <= 100
+
+    <<
+        Violation: DynamoDB provisioned capacity is too high. Maximum: 100 RCU/WCU.
+        Consider using on-demand billing mode instead.
+    >>
+}
+
+#
+# Required Tags Check
+#
+rule required_tags_check when
+    resourceType IN [
+        'AWS::EC2::Instance',
+        'AWS::RDS::DBInstance',
+        'AWS::S3::Bucket',
+        'AWS::DynamoDB::Table',
+        'AWS::EKS::Cluster',
+        'AWS::Lambda::Function'
+    ] {
+
+    Properties.Tags exists
+    some Properties.Tags[*] {
+        Key == 'Team'
+        Value exists
+    }
+
+    <<
+        Violation: Resource must have a 'Team' tag with the team name.
+    >>
+}
+
+#
+# S3 Bucket Encryption Check
+#
+rule s3_encryption_check when
+    resourceType == 'AWS::S3::Bucket' {
+
+    Properties.BucketEncryption exists
+    Properties.BucketEncryption.ServerSideEncryptionConfiguration exists
+
+    <<
+        Violation: S3 bucket must have server-side encryption enabled.
+    >>
+}
+
+#
+# S3 Public Access Block Check
+#
+rule s3_public_access_check when
+    resourceType == 'AWS::S3::Bucket' {
+
+    Properties.PublicAccessBlockConfiguration exists
+    Properties.PublicAccessBlockConfiguration.BlockPublicAcls == true
+    Properties.PublicAccessBlockConfiguration.BlockPublicPolicy == true
+    Properties.PublicAccessBlockConfiguration.IgnorePublicAcls == true
+    Properties.PublicAccessBlockConfiguration.RestrictPublicBuckets == true
+
+    <<
+        Violation: S3 bucket must have all public access blocked.
+    >>
+}
+
+#
+# EBS Encryption Check
+#
+rule ebs_encryption_check when
+    resourceType == 'AWS::EC2::Volume' {
+
+    Properties.Encrypted == true
+
+    <<
+        Violation: EBS volumes must be encrypted.
+    >>
+}
+
+#
+# RDS Storage Encryption Check
+#
+rule rds_encryption_check when
+    resourceType == 'AWS::RDS::DBInstance' {
+
+    Properties.StorageEncrypted == true
+
+    <<
+        Violation: RDS database must have storage encryption enabled.
+    >>
+}
+
+#
+# Multi-AZ Restriction for Cost Control
+#
+rule rds_multi_az_restriction when
+    resourceType == 'AWS::RDS::DBInstance'
+    Properties.DBInstanceClass IN [/db\..*\.4xlarge/, /db\..*\.2xlarge/] {
+
+    Properties.MultiAZ == false
+
+    <<
+        Violation: Multi-AZ deployments are not allowed for large RDS instances to control costs.
+        Use smaller instance types if Multi-AZ is required.
+    >>
+}

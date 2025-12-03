@@ -1,0 +1,59 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'CloudFormation Hooks Type Configuration for enforcing resource limits'
+
+# This template demonstrates how to configure CloudFormation Hooks
+# to enforce resource limits using AWS CloudFormation Guard
+
+# NOTE: CloudFormation Hooks are configured at the account/region level
+# and apply to all stack operations in that scope
+
+Resources:
+  # Type Configuration for Guard Hook
+  GuardHookTypeConfiguration:
+    Type: AWS::CloudFormation::HookTypeConfig
+    Properties:
+      TypeName: AWSSamples::GuardHook::Hook
+      Configuration: |
+        {
+          "CloudFormationConfiguration": {
+            "HookConfiguration": {
+              "TargetStacks": "ALL",
+              "FailureMode": "FAIL",
+              "Properties": {
+                "RuleLocationUri": "s3://your-guard-rules-bucket/cfn-guard-rules.guard",
+                "MinimumFailureLevel": "ERROR"
+              }
+            }
+          }
+        }
+
+  # Alternative: Type Configuration for specific resource types
+  EC2GuardHookTypeConfiguration:
+    Type: AWS::CloudFormation::HookTypeConfig
+    Properties:
+      TypeName: AWSSamples::GuardHook::Hook
+      Configuration: |
+        {
+          "CloudFormationConfiguration": {
+            "HookConfiguration": {
+              "TargetStacks": "ALL",
+              "FailureMode": "FAIL",
+              "Properties": {
+                "TargetOperations": ["CREATE", "UPDATE"],
+                "ResourceTypeFilters": [
+                  "AWS::EC2::Instance",
+                  "AWS::RDS::DBInstance",
+                  "AWS::OpenSearchService::Domain",
+                  "AWS::ElastiCache::CacheCluster",
+                  "AWS::SageMaker::NotebookInstance",
+                  "AWS::EKS::Nodegroup"
+                ]
+              }
+            }
+          }
+        }
+
+Outputs:
+  GuardHookConfiguration:
+    Description: 'Guard Hook Type Configuration'
+    Value: !Ref GuardHookTypeConfiguration

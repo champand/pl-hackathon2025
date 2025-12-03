@@ -1,0 +1,163 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AllowAllServicesInApSouth1",
+      "Effect": "Allow",
+      "Action": "*",
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "ap-south-1"
+        }
+      }
+    },
+    {
+      "Sid": "AllowGlobalServices",
+      "Effect": "Allow",
+      "Action": [
+        "iam:*",
+        "cloudfront:*",
+        "route53:*",
+        "route53domains:*",
+        "budgets:ViewBudget",
+        "budgets:ViewBudgetAction",
+        "ce:*",
+        "cur:*",
+        "support:*",
+        "trustedadvisor:*",
+        "waf:*",
+        "wafv2:*",
+        "shield:*",
+        "globalaccelerator:*"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "DenyAccountDeletion",
+      "Effect": "Deny",
+      "Action": [
+        "account:CloseAccount",
+        "organizations:CloseAccount",
+        "organizations:LeaveOrganization"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "DenySecurityServiceDisablement",
+      "Effect": "Deny",
+      "Action": [
+        "config:DeleteConfigurationRecorder",
+        "config:DeleteDeliveryChannel",
+        "config:StopConfigurationRecorder",
+        "cloudtrail:DeleteTrail",
+        "cloudtrail:StopLogging",
+        "guardduty:DeleteDetector",
+        "guardduty:DisassociateFromMasterAccount",
+        "securityhub:DisableSecurityHub",
+        "securityhub:DisassociateFromMasterAccount"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "DenyBudgetModification",
+      "Effect": "Deny",
+      "Action": [
+        "budgets:DeleteBudgetAction",
+        "budgets:ModifyBudget"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringLike": {
+          "aws:ResourceTag/ManagedBy": "CloudTeam"
+        }
+      }
+    },
+    {
+      "Sid": "DenyIAMUserCreationWithoutBoundary",
+      "Effect": "Deny",
+      "Action": [
+        "iam:CreateUser",
+        "iam:CreateRole"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringNotEquals": {
+          "iam:PermissionsBoundary": "arn:aws:iam::${aws:PrincipalAccount}:policy/HackathonPermissionBoundary"
+        }
+      }
+    },
+    {
+      "Sid": "DenyRemovingPermissionBoundary",
+      "Effect": "Deny",
+      "Action": [
+        "iam:DeleteUserPermissionsBoundary",
+        "iam:DeleteRolePermissionsBoundary"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "DenyModifyingCloudTeamResources",
+      "Effect": "Deny",
+      "Action": [
+        "*"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "aws:ResourceTag/ManagedBy": "CloudTeam"
+        }
+      }
+    },
+    {
+      "Sid": "DenyLargeInstanceTypes",
+      "Effect": "Deny",
+      "Action": [
+        "ec2:RunInstances",
+        "sagemaker:CreateNotebookInstance",
+        "sagemaker:CreateTrainingJob",
+        "sagemaker:CreateEndpoint"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "ForAnyValue:StringLike": {
+          "ec2:InstanceType": [
+            "*.16xlarge",
+            "*.24xlarge",
+            "*.32xlarge",
+            "*.metal"
+          ]
+        }
+      }
+    },
+    {
+      "Sid": "DenyCrossAccountAccess",
+      "Effect": "Deny",
+      "Action": [
+        "sts:AssumeRole"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringNotEquals": {
+          "aws:PrincipalAccount": "${aws:ResourceAccount}"
+        }
+      }
+    },
+    {
+      "Sid": "RequireTagsOnResources",
+      "Effect": "Deny",
+      "Action": [
+        "ec2:RunInstances",
+        "rds:CreateDBInstance",
+        "s3:CreateBucket",
+        "dynamodb:CreateTable"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringNotLike": {
+          "aws:RequestTag/Team": "*"
+        }
+      }
+    }
+  ]
+}

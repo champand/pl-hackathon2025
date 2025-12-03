@@ -1,0 +1,423 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "DenyAllOutsideApSouth1",
+      "Effect": "Deny",
+      "Action": "*",
+      "Resource": "*",
+      "Condition": {
+        "StringNotEquals": {
+          "aws:RequestedRegion": "ap-south-1"
+        },
+        "ForAllValues:StringNotLike": {
+          "aws:PrincipalServiceNamesList": [
+            "cloudfront.amazonaws.com",
+            "iam.amazonaws.com",
+            "route53.amazonaws.com",
+            "route53domains.amazonaws.com",
+            "budgets.amazonaws.com",
+            "organizations.amazonaws.com",
+            "globalaccelerator.amazonaws.com",
+            "shield.amazonaws.com",
+            "waf.amazonaws.com",
+            "wafv2.amazonaws.com",
+            "support.amazonaws.com",
+            "trustedadvisor.amazonaws.com"
+          ]
+        }
+      }
+    },
+    {
+      "Sid": "DenyRegionOutsideApSouth1ForRegionalServices",
+      "Effect": "Deny",
+      "NotAction": [
+        "cloudfront:*",
+        "iam:*",
+        "route53:*",
+        "route53domains:*",
+        "budgets:*",
+        "organizations:*",
+        "globalaccelerator:*",
+        "shield:*",
+        "waf:*",
+        "wafv2:*",
+        "support:*",
+        "trustedadvisor:*",
+        "ce:*",
+        "cur:*",
+        "account:*",
+        "billing:*",
+        "payments:*",
+        "tax:*",
+        "consolidatedbilling:*",
+        "invoicing:*",
+        "freetier:*",
+        "aws-portal:*"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringNotEquals": {
+          "aws:RequestedRegion": "ap-south-1"
+        }
+      }
+    },
+    {
+      "Sid": "DenyAccountClosure",
+      "Effect": "Deny",
+      "Action": [
+        "account:CloseAccount",
+        "organizations:CloseAccount"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "DenyLeavingOrganization",
+      "Effect": "Deny",
+      "Action": [
+        "organizations:LeaveOrganization",
+        "organizations:RemoveAccountFromOrganization"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "DenyVPCPeeringCrossAccount",
+      "Effect": "Deny",
+      "Action": [
+        "ec2:AcceptVpcPeeringConnection",
+        "ec2:CreateVpcPeeringConnection"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringNotEquals": {
+          "ec2:AccepterVpc": "${aws:SourceVpc}"
+        }
+      }
+    },
+    {
+      "Sid": "DenyTransitGatewayOperations",
+      "Effect": "Deny",
+      "Action": [
+        "ec2:AcceptTransitGatewayVpcAttachment",
+        "ec2:CreateTransitGatewayVpcAttachment",
+        "ec2:AssociateTransitGatewayRouteTable",
+        "ec2:CreateTransitGateway",
+        "ec2:CreateTransitGatewayPeeringAttachment",
+        "ec2:AcceptTransitGatewayPeeringAttachment"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "DenyRAMSharingOutsideAccount",
+      "Effect": "Deny",
+      "Action": [
+        "ram:CreateResourceShare",
+        "ram:AssociateResourceShare",
+        "ram:AcceptResourceShareInvitation"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringNotEquals": {
+          "ram:RequestedResourceType": "None"
+        }
+      }
+    },
+    {
+      "Sid": "DenyOrganizationModifications",
+      "Effect": "Deny",
+      "Action": [
+        "organizations:CreateOrganization",
+        "organizations:DeleteOrganization",
+        "organizations:CreateOrganizationalUnit",
+        "organizations:DeleteOrganizationalUnit",
+        "organizations:MoveAccount",
+        "organizations:CreatePolicy",
+        "organizations:UpdatePolicy",
+        "organizations:DeletePolicy",
+        "organizations:AttachPolicy",
+        "organizations:DetachPolicy",
+        "organizations:EnablePolicyType",
+        "organizations:DisablePolicyType",
+        "organizations:EnableAWSServiceAccess",
+        "organizations:DisableAWSServiceAccess",
+        "organizations:RegisterDelegatedAdministrator",
+        "organizations:DeregisterDelegatedAdministrator"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "DenyDisablingSecurityServices",
+      "Effect": "Deny",
+      "Action": [
+        "config:DeleteConfigurationRecorder",
+        "config:DeleteDeliveryChannel",
+        "config:StopConfigurationRecorder",
+        "cloudtrail:DeleteTrail",
+        "cloudtrail:StopLogging",
+        "cloudtrail:UpdateTrail",
+        "guardduty:DeleteDetector",
+        "guardduty:DisassociateFromMasterAccount",
+        "guardduty:DisassociateMembers",
+        "guardduty:StopMonitoringMembers",
+        "guardduty:UpdateDetector",
+        "securityhub:DeleteInvitations",
+        "securityhub:DisableSecurityHub",
+        "securityhub:DisassociateFromMasterAccount",
+        "securityhub:DisassociateMembers",
+        "securityhub:DeleteMembers"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "DenyIAMIdentityCenterModifications",
+      "Effect": "Deny",
+      "Action": [
+        "sso:DeleteManagedApplicationInstance",
+        "sso:DeleteProfile",
+        "sso:DisassociateDirectory",
+        "sso:DisassociateProfile",
+        "sso-directory:*",
+        "identitystore:DeleteUser",
+        "identitystore:DeleteGroup"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "DenyLargeEC2Instances",
+      "Effect": "Deny",
+      "Action": [
+        "ec2:RunInstances",
+        "ec2:StartInstances"
+      ],
+      "Resource": "arn:aws:ec2:*:*:instance/*",
+      "Condition": {
+        "ForAnyValue:StringLike": {
+          "ec2:InstanceType": [
+            "*.16xlarge",
+            "*.18xlarge",
+            "*.24xlarge",
+            "*.32xlarge",
+            "*.56xlarge",
+            "*.112xlarge",
+            "*.metal",
+            "u-*",
+            "x1*",
+            "x2*",
+            "z1d.*"
+          ]
+        }
+      }
+    },
+    {
+      "Sid": "DenyGPUInstancesAboveLimit",
+      "Effect": "Deny",
+      "Action": [
+        "ec2:RunInstances",
+        "ec2:StartInstances"
+      ],
+      "Resource": "arn:aws:ec2:*:*:instance/*",
+      "Condition": {
+        "ForAnyValue:StringLike": {
+          "ec2:InstanceType": [
+            "p2.8xlarge",
+            "p2.16xlarge",
+            "p3.8xlarge",
+            "p3.16xlarge",
+            "p3dn.24xlarge",
+            "p4d.24xlarge",
+            "p4de.24xlarge",
+            "p5.48xlarge",
+            "g4dn.8xlarge",
+            "g4dn.12xlarge",
+            "g4dn.16xlarge",
+            "g4dn.metal",
+            "g5.12xlarge",
+            "g5.16xlarge",
+            "g5.24xlarge",
+            "g5.48xlarge",
+            "inf1.24xlarge",
+            "inf2.24xlarge",
+            "inf2.48xlarge",
+            "trn1.32xlarge",
+            "trn1n.32xlarge"
+          ]
+        }
+      }
+    },
+    {
+      "Sid": "DenyHighCostMSKClusters",
+      "Effect": "Deny",
+      "Action": [
+        "kafka:CreateCluster",
+        "kafka:CreateClusterV2"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "NumericGreaterThan": {
+          "kafka:numberOfBrokerNodes": "3"
+        }
+      }
+    },
+    {
+      "Sid": "DenyLargeOpenSearchDomains",
+      "Effect": "Deny",
+      "Action": [
+        "es:CreateDomain",
+        "es:UpdateDomainConfig"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "ForAnyValue:StringNotLike": {
+          "es:InstanceType": [
+            "t3.small.search",
+            "t3.medium.search",
+            "t2.small.search",
+            "t2.medium.search"
+          ]
+        }
+      }
+    },
+    {
+      "Sid": "DenyLargeElastiCacheClusters",
+      "Effect": "Deny",
+      "Action": [
+        "elasticache:CreateCacheCluster",
+        "elasticache:CreateReplicationGroup"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "ForAnyValue:StringNotLike": {
+          "elasticache:CacheNodeType": [
+            "cache.t2.micro",
+            "cache.t2.small",
+            "cache.t2.medium",
+            "cache.t3.micro",
+            "cache.t3.small",
+            "cache.t3.medium",
+            "cache.t4g.micro",
+            "cache.t4g.small",
+            "cache.t4g.medium"
+          ]
+        }
+      }
+    },
+    {
+      "Sid": "DenyLargeEKSNodeGroups",
+      "Effect": "Deny",
+      "Action": [
+        "eks:CreateNodegroup",
+        "eks:UpdateNodegroupConfig"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "ForAnyValue:StringLike": {
+          "eks:InstanceTypes": [
+            "*.8xlarge",
+            "*.12xlarge",
+            "*.16xlarge",
+            "*.18xlarge",
+            "*.24xlarge",
+            "*.32xlarge",
+            "p2.*",
+            "p3.*",
+            "p4.*",
+            "p5.*",
+            "g4dn.8xlarge",
+            "g4dn.12xlarge",
+            "g4dn.16xlarge",
+            "g5.8xlarge",
+            "g5.12xlarge",
+            "g5.16xlarge",
+            "g5.24xlarge",
+            "g5.48xlarge"
+          ]
+        }
+      }
+    },
+    {
+      "Sid": "DenyRDSHighCostInstances",
+      "Effect": "Deny",
+      "Action": [
+        "rds:CreateDBInstance",
+        "rds:CreateDBCluster"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "ForAnyValue:StringLike": {
+          "rds:DatabaseClass": [
+            "db.*.8xlarge",
+            "db.*.12xlarge",
+            "db.*.16xlarge",
+            "db.*.24xlarge",
+            "db.*.32xlarge"
+          ]
+        }
+      }
+    },
+    {
+      "Sid": "DenySageMakerExpensiveInstances",
+      "Effect": "Deny",
+      "Action": [
+        "sagemaker:CreateNotebookInstance",
+        "sagemaker:CreateTrainingJob",
+        "sagemaker:CreateHyperParameterTuningJob",
+        "sagemaker:CreateEndpoint"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "ForAnyValue:StringLike": {
+          "sagemaker:InstanceTypes": [
+            "ml.*.8xlarge",
+            "ml.*.12xlarge",
+            "ml.*.16xlarge",
+            "ml.*.24xlarge",
+            "ml.*.32xlarge",
+            "ml.p3.8xlarge",
+            "ml.p3.16xlarge",
+            "ml.p3dn.24xlarge",
+            "ml.p4d.24xlarge",
+            "ml.p4de.24xlarge",
+            "ml.p5.48xlarge"
+          ]
+        }
+      }
+    },
+    {
+      "Sid": "DenyCrossAccountAssumeRoleExceptSSO",
+      "Effect": "Deny",
+      "Action": "sts:AssumeRole",
+      "Resource": "*",
+      "Condition": {
+        "StringNotEquals": {
+          "aws:PrincipalOrgID": "${aws:ResourceOrgID}"
+        },
+        "StringNotLike": {
+          "aws:PrincipalArn": "arn:aws:iam::*:role/aws-reserved/sso.amazonaws.com/*"
+        }
+      }
+    },
+    {
+      "Sid": "DenyModifyingBudgets",
+      "Effect": "Deny",
+      "Action": [
+        "budgets:DeleteBudgetAction",
+        "budgets:ModifyBudget"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "DenyDeletingCloudWatchLogGroups",
+      "Effect": "Deny",
+      "Action": [
+        "logs:DeleteLogGroup",
+        "logs:DeleteLogStream"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringLike": {
+          "aws:ResourceTag/ManagedBy": "CloudTeam"
+        }
+      }
+    }
+  ]
+}

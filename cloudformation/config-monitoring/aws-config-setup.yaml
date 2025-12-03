@@ -1,0 +1,350 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'AWS Config setup with compliance rules for Hackathon accounts'
+
+Parameters:
+  TeamName:
+    Type: String
+    Description: 'Name of the hackathon team'
+    AllowedPattern: '^[a-zA-Z0-9-]+$'
+
+  ConfigBucketName:
+    Type: String
+    Description: 'S3 bucket name for AWS Config delivery (must be globally unique)'
+    AllowedPattern: '^[a-z0-9][a-z0-9-]*[a-z0-9]$'
+
+  CloudTeamEmail:
+    Type: String
+    Description: 'Email for compliance notifications'
+    AllowedPattern: '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+
+Resources:
+  # S3 Bucket for Config
+  ConfigBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName: !Ref ConfigBucketName
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteOldConfigData
+            Status: Enabled
+            ExpirationInDays: 90
+            NoncurrentVersionExpirationInDays: 30
+      Tags:
+        - Key: Team
+          Value: !Ref TeamName
+        - Key: ManagedBy
+          Value: CloudTeam
+        - Key: Purpose
+          Value: AWSConfig
+
+  # S3 Bucket Policy
+  ConfigBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref ConfigBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AWSConfigBucketPermissionsCheck
+            Effect: Allow
+            Principal:
+              Service: config.amazonaws.com
+            Action: s3:GetBucketAcl
+            Resource: !GetAtt ConfigBucket.Arn
+          - Sid: AWSConfigBucketExistenceCheck
+            Effect: Allow
+            Principal:
+              Service: config.amazonaws.com
+            Action: s3:ListBucket
+            Resource: !GetAtt ConfigBucket.Arn
+          - Sid: AWSConfigBucketPutObject
+            Effect: Allow
+            Principal:
+              Service: config.amazonaws.com
+            Action: s3:PutObject
+            Resource: !Sub '${ConfigBucket.Arn}/*'
+            Condition:
+              StringEquals:
+                s3:x-amz-acl: bucket-owner-full-control
+
+  # IAM Role for Config
+  ConfigRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${TeamName}-config-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: config.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/ConfigRole
+      Policies:
+        - PolicyName: ConfigS3Policy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetBucketVersioning
+                  - s3:PutObject
+                  - s3:GetObject
+                Resource:
+                  - !GetAtt ConfigBucket.Arn
+                  - !Sub '${ConfigBucket.Arn}/*'
+      Tags:
+        - Key: Team
+          Value: !Ref TeamName
+        - Key: ManagedBy
+          Value: CloudTeam
+
+  # Config Recorder
+  ConfigRecorder:
+    Type: AWS::Config::ConfigurationRecorder
+    Properties:
+      Name: !Sub '${TeamName}-config-recorder'
+      RoleArn: !GetAtt ConfigRole.Arn
+      RecordingGroup:
+        AllSupported: true
+        IncludeGlobalResourceTypes: true
+        ResourceTypes: []
+
+  # Delivery Channel
+  ConfigDeliveryChannel:
+    Type: AWS::Config::DeliveryChannel
+    Properties:
+      Name: !Sub '${TeamName}-delivery-channel'
+      S3BucketName: !Ref ConfigBucket
+      ConfigSnapshotDeliveryProperties:
+        DeliveryFrequency: TwentyFour_Hours
+
+  # SNS Topic for Config Notifications
+  ConfigComplianceTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub '${TeamName}-config-compliance'
+      DisplayName: !Sub 'Config Compliance for ${TeamName}'
+      Tags:
+        - Key: Team
+          Value: !Ref TeamName
+        - Key: ManagedBy
+          Value: CloudTeam
+
+  ConfigComplianceTopicPolicy:
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      Topics:
+        - !Ref ConfigComplianceTopic
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: config.amazonaws.com
+            Action: SNS:Publish
+            Resource: !Ref ConfigComplianceTopic
+
+  ConfigComplianceEmailSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      Protocol: email
+      TopicArn: !Ref ConfigComplianceTopic
+      Endpoint: !Ref CloudTeamEmail
+
+  # Config Rules
+  EC2InstanceTypeRule:
+    Type: AWS::Config::ConfigRule
+    DependsOn:
+      - ConfigRecorder
+      - ConfigDeliveryChannel
+    Properties:
+      ConfigRuleName: !Sub '${TeamName}-ec2-instance-type-check'
+      Description: 'Checks that EC2 instances are not using prohibited large instance types'
+      Source:
+        Owner: AWS
+        SourceIdentifier: DESIRED_INSTANCE_TYPE
+      InputParameters:
+        instanceType: 't2.micro,t2.small,t2.medium,t2.large,t3.micro,t3.small,t3.medium,t3.large,t3.xlarge,t3.2xlarge,m5.large,m5.xlarge,m5.2xlarge,m5.4xlarge,c5.large,c5.xlarge,c5.2xlarge,c5.4xlarge,r5.large,r5.xlarge,r5.2xlarge,r5.4xlarge,g4dn.xlarge,g4dn.2xlarge,g4dn.4xlarge,p3.2xlarge'
+      Scope:
+        ComplianceResourceTypes:
+          - AWS::EC2::Instance
+
+  RDSInstanceTypeRule:
+    Type: AWS::Config::ConfigRule
+    DependsOn:
+      - ConfigRecorder
+      - ConfigDeliveryChannel
+    Properties:
+      ConfigRuleName: !Sub '${TeamName}-rds-instance-type-check'
+      Description: 'Checks that RDS instances are not using prohibited large instance types'
+      Source:
+        Owner: AWS
+        SourceIdentifier: RDS_INSTANCE_PUBLIC_ACCESS_CHECK
+      Scope:
+        ComplianceResourceTypes:
+          - AWS::RDS::DBInstance
+
+  S3BucketEncryptionRule:
+    Type: AWS::Config::ConfigRule
+    DependsOn:
+      - ConfigRecorder
+      - ConfigDeliveryChannel
+    Properties:
+      ConfigRuleName: !Sub '${TeamName}-s3-bucket-encryption'
+      Description: 'Checks that S3 buckets have encryption enabled'
+      Source:
+        Owner: AWS
+        SourceIdentifier: S3_BUCKET_SERVER_SIDE_ENCRYPTION_ENABLED
+      Scope:
+        ComplianceResourceTypes:
+          - AWS::S3::Bucket
+
+  S3PublicAccessRule:
+    Type: AWS::Config::ConfigRule
+    DependsOn:
+      - ConfigRecorder
+      - ConfigDeliveryChannel
+    Properties:
+      ConfigRuleName: !Sub '${TeamName}-s3-public-access-prohibited'
+      Description: 'Checks that S3 buckets do not allow public access'
+      Source:
+        Owner: AWS
+        SourceIdentifier: S3_BUCKET_PUBLIC_READ_PROHIBITED
+      Scope:
+        ComplianceResourceTypes:
+          - AWS::S3::Bucket
+
+  IAMPasswordPolicyRule:
+    Type: AWS::Config::ConfigRule
+    DependsOn:
+      - ConfigRecorder
+      - ConfigDeliveryChannel
+    Properties:
+      ConfigRuleName: !Sub '${TeamName}-iam-password-policy'
+      Description: 'Checks that account password policy meets requirements'
+      Source:
+        Owner: AWS
+        SourceIdentifier: IAM_PASSWORD_POLICY
+      InputParameters:
+        RequireUppercaseCharacters: true
+        RequireLowercaseCharacters: true
+        RequireNumbers: true
+        MinimumPasswordLength: 14
+
+  RootAccountMFARule:
+    Type: AWS::Config::ConfigRule
+    DependsOn:
+      - ConfigRecorder
+      - ConfigDeliveryChannel
+    Properties:
+      ConfigRuleName: !Sub '${TeamName}-root-account-mfa'
+      Description: 'Checks that root account has MFA enabled'
+      Source:
+        Owner: AWS
+        SourceIdentifier: ROOT_ACCOUNT_MFA_ENABLED
+      MaximumExecutionFrequency: TwentyFour_Hours
+
+  CloudTrailEnabledRule:
+    Type: AWS::Config::ConfigRule
+    DependsOn:
+      - ConfigRecorder
+      - ConfigDeliveryChannel
+    Properties:
+      ConfigRuleName: !Sub '${TeamName}-cloudtrail-enabled'
+      Description: 'Checks that CloudTrail is enabled'
+      Source:
+        Owner: AWS
+        SourceIdentifier: CLOUD_TRAIL_ENABLED
+      MaximumExecutionFrequency: TwentyFour_Hours
+
+  ResourceTaggingRule:
+    Type: AWS::Config::ConfigRule
+    DependsOn:
+      - ConfigRecorder
+      - ConfigDeliveryChannel
+    Properties:
+      ConfigRuleName: !Sub '${TeamName}-required-tags'
+      Description: 'Checks that resources have required tags'
+      Source:
+        Owner: AWS
+        SourceIdentifier: REQUIRED_TAGS
+      InputParameters:
+        tag1Key: 'Team'
+        tag2Key: 'Purpose'
+      Scope:
+        ComplianceResourceTypes:
+          - AWS::EC2::Instance
+          - AWS::RDS::DBInstance
+          - AWS::S3::Bucket
+          - AWS::DynamoDB::Table
+
+  EBSEncryptionRule:
+    Type: AWS::Config::ConfigRule
+    DependsOn:
+      - ConfigRecorder
+      - ConfigDeliveryChannel
+    Properties:
+      ConfigRuleName: !Sub '${TeamName}-ebs-encryption'
+      Description: 'Checks that EBS volumes are encrypted'
+      Source:
+        Owner: AWS
+        SourceIdentifier: ENCRYPTED_VOLUMES
+      Scope:
+        ComplianceResourceTypes:
+          - AWS::EC2::Volume
+
+  # EventBridge Rule for Non-Compliance
+  ConfigComplianceEventRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: !Sub '${TeamName}-config-compliance-changes'
+      Description: 'Trigger on Config compliance changes'
+      EventPattern:
+        source:
+          - aws.config
+        detail-type:
+          - Config Rules Compliance Change
+        detail:
+          messageType:
+            - ComplianceChangeNotification
+          newEvaluationResult:
+            complianceType:
+              - NON_COMPLIANT
+      State: ENABLED
+      Targets:
+        - Arn: !Ref ConfigComplianceTopic
+          Id: ConfigComplianceSNS
+
+Outputs:
+  ConfigBucketName:
+    Description: 'S3 bucket for AWS Config'
+    Value: !Ref ConfigBucket
+    Export:
+      Name: !Sub '${TeamName}-config-bucket'
+
+  ConfigRoleArn:
+    Description: 'IAM role ARN for AWS Config'
+    Value: !GetAtt ConfigRole.Arn
+
+  ConfigRecorderName:
+    Description: 'Config recorder name'
+    Value: !Ref ConfigRecorder
+
+  ComplianceTopicArn:
+    Description: 'SNS topic for compliance notifications'
+    Value: !Ref ConfigComplianceTopic

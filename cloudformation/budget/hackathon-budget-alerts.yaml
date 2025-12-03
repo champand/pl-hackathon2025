@@ -1,0 +1,345 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'AWS Budget monitoring and alerts for Hackathon accounts'
+
+Parameters:
+  TeamName:
+    Type: String
+    Description: 'Name of the hackathon team (e.g., team-01)'
+    AllowedPattern: '^[a-zA-Z0-9-]+$'
+    ConstraintDescription: 'Must contain only alphanumeric characters and hyphens'
+
+  MonthlyBudgetLimit:
+    Type: Number
+    Description: 'Monthly budget limit in USD'
+    Default: 500
+    MinValue: 100
+    MaxValue: 5000
+
+  EventBudgetLimit:
+    Type: Number
+    Description: 'Total event budget limit in USD'
+    Default: 2000
+    MinValue: 500
+    MaxValue: 10000
+
+  CloudTeamEmail:
+    Type: String
+    Description: 'Email address of the Cloud Team for budget alerts'
+    AllowedPattern: '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    ConstraintDescription: 'Must be a valid email address'
+
+  TeamEmail:
+    Type: String
+    Description: 'Email address of the hackathon team for budget alerts'
+    AllowedPattern: '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    ConstraintDescription: 'Must be a valid email address'
+
+  AlertThreshold1:
+    Type: Number
+    Description: 'First alert threshold percentage'
+    Default: 50
+    MinValue: 1
+    MaxValue: 100
+
+  AlertThreshold2:
+    Type: Number
+    Description: 'Second alert threshold percentage'
+    Default: 75
+    MinValue: 1
+    MaxValue: 100
+
+  AlertThreshold3:
+    Type: Number
+    Description: 'Third alert threshold percentage'
+    Default: 90
+    MinValue: 1
+    MaxValue: 100
+
+  AlertThreshold4:
+    Type: Number
+    Description: 'Fourth alert threshold percentage (forecasted)'
+    Default: 100
+    MinValue: 1
+    MaxValue: 150
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: 'Team Information'
+        Parameters:
+          - TeamName
+          - TeamEmail
+          - CloudTeamEmail
+      - Label:
+          default: 'Budget Limits'
+        Parameters:
+          - MonthlyBudgetLimit
+          - EventBudgetLimit
+      - Label:
+          default: 'Alert Thresholds'
+        Parameters:
+          - AlertThreshold1
+          - AlertThreshold2
+          - AlertThreshold3
+          - AlertThreshold4
+
+Resources:
+  # SNS Topic for Budget Alerts
+  BudgetAlertTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub '${TeamName}-budget-alerts'
+      DisplayName: !Sub 'Budget Alerts for ${TeamName}'
+      Tags:
+        - Key: Team
+          Value: !Ref TeamName
+        - Key: ManagedBy
+          Value: CloudTeam
+        - Key: Purpose
+          Value: HackathonBudgetAlerts
+
+  # SNS Topic Policy
+  BudgetAlertTopicPolicy:
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      Topics:
+        - !Ref BudgetAlertTopic
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AllowBudgetsToPublish
+            Effect: Allow
+            Principal:
+              Service: budgets.amazonaws.com
+            Action:
+              - SNS:Publish
+            Resource: !Ref BudgetAlertTopic
+          - Sid: AllowCloudWatchToPublish
+            Effect: Allow
+            Principal:
+              Service: cloudwatch.amazonaws.com
+            Action:
+              - SNS:Publish
+            Resource: !Ref BudgetAlertTopic
+
+  # SNS Subscription for Cloud Team
+  CloudTeamEmailSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      Protocol: email
+      TopicArn: !Ref BudgetAlertTopic
+      Endpoint: !Ref CloudTeamEmail
+
+  # SNS Subscription for Team
+  TeamEmailSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      Protocol: email
+      TopicArn: !Ref BudgetAlertTopic
+      Endpoint: !Ref TeamEmail
+
+  # Monthly Budget
+  MonthlyBudget:
+    Type: AWS::Budgets::Budget
+    Properties:
+      Budget:
+        BudgetName: !Sub '${TeamName}-monthly-budget'
+        BudgetLimit:
+          Amount: !Ref MonthlyBudgetLimit
+          Unit: USD
+        TimeUnit: MONTHLY
+        BudgetType: COST
+        CostFilters:
+          TagKeyValue:
+            - !Sub 'user:Team$${TeamName}'
+        CostTypes:
+          IncludeTax: true
+          IncludeSubscription: true
+          UseBlended: false
+          IncludeRefund: false
+          IncludeCredit: false
+          IncludeUpfront: true
+          IncludeRecurring: true
+          IncludeOtherSubscription: true
+          IncludeSupport: true
+          IncludeDiscount: true
+          UseAmortized: false
+      NotificationsWithSubscribers:
+        - Notification:
+            NotificationType: ACTUAL
+            ComparisonOperator: GREATER_THAN
+            Threshold: !Ref AlertThreshold1
+            ThresholdType: PERCENTAGE
+          Subscribers:
+            - SubscriptionType: SNS
+              Address: !Ref BudgetAlertTopic
+        - Notification:
+            NotificationType: ACTUAL
+            ComparisonOperator: GREATER_THAN
+            Threshold: !Ref AlertThreshold2
+            ThresholdType: PERCENTAGE
+          Subscribers:
+            - SubscriptionType: SNS
+              Address: !Ref BudgetAlertTopic
+        - Notification:
+            NotificationType: ACTUAL
+            ComparisonOperator: GREATER_THAN
+            Threshold: !Ref AlertThreshold3
+            ThresholdType: PERCENTAGE
+          Subscribers:
+            - SubscriptionType: SNS
+              Address: !Ref BudgetAlertTopic
+        - Notification:
+            NotificationType: FORECASTED
+            ComparisonOperator: GREATER_THAN
+            Threshold: !Ref AlertThreshold4
+            ThresholdType: PERCENTAGE
+          Subscribers:
+            - SubscriptionType: SNS
+              Address: !Ref BudgetAlertTopic
+
+  # Event-Wide Budget
+  EventBudget:
+    Type: AWS::Budgets::Budget
+    Properties:
+      Budget:
+        BudgetName: !Sub '${TeamName}-event-budget'
+        BudgetLimit:
+          Amount: !Ref EventBudgetLimit
+          Unit: USD
+        TimeUnit: MONTHLY
+        BudgetType: COST
+        TimePeriod:
+          Start: '2025-12-01T00:00:00Z'
+          End: '2026-01-31T23:59:59Z'
+        CostFilters:
+          TagKeyValue:
+            - !Sub 'user:Team$${TeamName}'
+        CostTypes:
+          IncludeTax: true
+          IncludeSubscription: true
+          UseBlended: false
+          IncludeRefund: false
+          IncludeCredit: false
+          IncludeUpfront: true
+          IncludeRecurring: true
+          IncludeOtherSubscription: true
+          IncludeSupport: true
+          IncludeDiscount: true
+          UseAmortized: false
+      NotificationsWithSubscribers:
+        - Notification:
+            NotificationType: ACTUAL
+            ComparisonOperator: GREATER_THAN
+            Threshold: 80
+            ThresholdType: PERCENTAGE
+          Subscribers:
+            - SubscriptionType: SNS
+              Address: !Ref BudgetAlertTopic
+        - Notification:
+            NotificationType: ACTUAL
+            ComparisonOperator: GREATER_THAN
+            Threshold: 100
+            ThresholdType: PERCENTAGE
+          Subscribers:
+            - SubscriptionType: SNS
+              Address: !Ref BudgetAlertTopic
+
+  # EC2 Usage Budget
+  EC2UsageBudget:
+    Type: AWS::Budgets::Budget
+    Properties:
+      Budget:
+        BudgetName: !Sub '${TeamName}-ec2-usage'
+        BudgetLimit:
+          Amount: 1000
+          Unit: USD
+        TimeUnit: MONTHLY
+        BudgetType: COST
+        CostFilters:
+          Service:
+            - Amazon Elastic Compute Cloud - Compute
+          TagKeyValue:
+            - !Sub 'user:Team$${TeamName}'
+        CostTypes:
+          IncludeTax: false
+          IncludeSubscription: true
+          UseBlended: false
+      NotificationsWithSubscribers:
+        - Notification:
+            NotificationType: ACTUAL
+            ComparisonOperator: GREATER_THAN
+            Threshold: 80
+            ThresholdType: PERCENTAGE
+          Subscribers:
+            - SubscriptionType: SNS
+              Address: !Ref BudgetAlertTopic
+
+  # SageMaker Usage Budget
+  SageMakerUsageBudget:
+    Type: AWS::Budgets::Budget
+    Properties:
+      Budget:
+        BudgetName: !Sub '${TeamName}-sagemaker-usage'
+        BudgetLimit:
+          Amount: 500
+          Unit: USD
+        TimeUnit: MONTHLY
+        BudgetType: COST
+        CostFilters:
+          Service:
+            - Amazon SageMaker
+          TagKeyValue:
+            - !Sub 'user:Team$${TeamName}'
+        CostTypes:
+          IncludeTax: false
+          IncludeSubscription: true
+          UseBlended: false
+      NotificationsWithSubscribers:
+        - Notification:
+            NotificationType: ACTUAL
+            ComparisonOperator: GREATER_THAN
+            Threshold: 80
+            ThresholdType: PERCENTAGE
+          Subscribers:
+            - SubscriptionType: SNS
+              Address: !Ref BudgetAlertTopic
+
+  # CloudWatch Alarm for Estimated Charges
+  EstimatedChargesAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${TeamName}-estimated-charges-alarm'
+      AlarmDescription: !Sub 'Alert when estimated charges for ${TeamName} exceed threshold'
+      MetricName: EstimatedCharges
+      Namespace: AWS/Billing
+      Statistic: Maximum
+      Period: 21600
+      EvaluationPeriods: 1
+      Threshold: !Ref MonthlyBudgetLimit
+      ComparisonOperator: GreaterThanThreshold
+      AlarmActions:
+        - !Ref BudgetAlertTopic
+      Dimensions:
+        - Name: Currency
+          Value: USD
+
+Outputs:
+  BudgetAlertTopicArn:
+    Description: 'ARN of the SNS topic for budget alerts'
+    Value: !Ref BudgetAlertTopic
+    Export:
+      Name: !Sub '${TeamName}-budget-alert-topic'
+
+  MonthlyBudgetName:
+    Description: 'Name of the monthly budget'
+    Value: !Sub '${TeamName}-monthly-budget'
+
+  EventBudgetName:
+    Description: 'Name of the event-wide budget'
+    Value: !Sub '${TeamName}-event-budget'
+
+  CloudWatchAlarmName:
+    Description: 'Name of the CloudWatch alarm'
+    Value: !Ref EstimatedChargesAlarm
