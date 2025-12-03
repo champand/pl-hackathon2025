@@ -321,7 +321,7 @@
         "StringNotEquals": {
           "aws:PrincipalOrgID": "${aws:ResourceOrgID}"
         },
-        "StringNotLike": {
+        "ArnNotLike": {
           "aws:PrincipalArn": "arn:aws:iam::*:role/aws-reserved/sso.amazonaws.com/*"
         }
       }
