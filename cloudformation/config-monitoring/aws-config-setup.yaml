@@ -10,7 +10,10 @@ Parameters:
   ConfigBucketName:
     Type: String
     Description: 'S3 bucket name for AWS Config delivery (must be globally unique)'
-    AllowedPattern: '^[a-z0-9][a-z0-9-]*[a-z0-9]$'
+    AllowedPattern: '^[a-z0-9][a-z0-9.-]*[a-z0-9]$'
+    MinLength: 3
+    MaxLength: 63
+    ConstraintDescription: 'Bucket name must be 3-63 characters, start and end with lowercase letter or number, and contain only lowercase letters, numbers, periods, and hyphens'
 
   CloudTeamEmail:
     Type: String

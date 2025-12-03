@@ -192,7 +192,10 @@ deploy_config_stack() {
 
     local stack_name="${team_name}-config-monitoring"
     local template_file="$CLOUDFORMATION_DIR/config-monitoring/aws-config-setup.yaml"
-    local bucket_name="${team_name}-config-${account_id}-ap-south-1"
+    # Ensure bucket name is lowercase and properly formatted
+    local bucket_name=$(echo "${team_name}-config-${account_id}-ap-south-1" | tr '[:upper:]' '[:lower:]')
+
+    log_info "Config bucket name: $bucket_name (length: ${#bucket_name})"
 
     # Create parameters file
     local params_file=$(mktemp)
