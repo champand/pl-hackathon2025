@@ -81,18 +81,13 @@
       "Resource": "*"
     },
     {
-      "Sid": "DenyVPCPeeringCrossAccount",
+      "Sid": "DenyVPCPeeringOperations",
       "Effect": "Deny",
       "Action": [
         "ec2:AcceptVpcPeeringConnection",
         "ec2:CreateVpcPeeringConnection"
       ],
-      "Resource": "*",
-      "Condition": {
-        "StringNotEquals": {
-          "ec2:AccepterVpc": "${aws:SourceVpc}"
-        }
-      }
+      "Resource": "*"
     },
     {
       "Sid": "DenyTransitGatewayOperations",
@@ -108,19 +103,14 @@
       "Resource": "*"
     },
     {
-      "Sid": "DenyRAMSharingOutsideAccount",
+      "Sid": "DenyRAMSharing",
       "Effect": "Deny",
       "Action": [
         "ram:CreateResourceShare",
         "ram:AssociateResourceShare",
         "ram:AcceptResourceShareInvitation"
       ],
-      "Resource": "*",
-      "Condition": {
-        "StringNotEquals": {
-          "ram:RequestedResourceType": "None"
-        }
-      }
+      "Resource": "*"
     },
     {
       "Sid": "DenyOrganizationModifications",
@@ -245,96 +235,6 @@
       }
     },
     {
-      "Sid": "DenyHighCostMSKClusters",
-      "Effect": "Deny",
-      "Action": [
-        "kafka:CreateCluster",
-        "kafka:CreateClusterV2"
-      ],
-      "Resource": "*",
-      "Condition": {
-        "NumericGreaterThan": {
-          "kafka:numberOfBrokerNodes": "3"
-        }
-      }
-    },
-    {
-      "Sid": "DenyLargeOpenSearchDomains",
-      "Effect": "Deny",
-      "Action": [
-        "es:CreateDomain",
-        "es:UpdateDomainConfig"
-      ],
-      "Resource": "*",
-      "Condition": {
-        "ForAnyValue:StringNotLike": {
-          "es:InstanceType": [
-            "t3.small.search",
-            "t3.medium.search",
-            "t2.small.search",
-            "t2.medium.search"
-          ]
-        }
-      }
-    },
-    {
-      "Sid": "DenyLargeElastiCacheClusters",
-      "Effect": "Deny",
-      "Action": [
-        "elasticache:CreateCacheCluster",
-        "elasticache:CreateReplicationGroup"
-      ],
-      "Resource": "*",
-      "Condition": {
-        "ForAnyValue:StringNotLike": {
-          "elasticache:CacheNodeType": [
-            "cache.t2.micro",
-            "cache.t2.small",
-            "cache.t2.medium",
-            "cache.t3.micro",
-            "cache.t3.small",
-            "cache.t3.medium",
-            "cache.t4g.micro",
-            "cache.t4g.small",
-            "cache.t4g.medium"
-          ]
-        }
-      }
-    },
-    {
-      "Sid": "DenyLargeEKSNodeGroups",
-      "Effect": "Deny",
-      "Action": [
-        "eks:CreateNodegroup",
-        "eks:UpdateNodegroupConfig"
-      ],
-      "Resource": "*",
-      "Condition": {
-        "ForAnyValue:StringLike": {
-          "eks:InstanceTypes": [
-            "*.8xlarge",
-            "*.12xlarge",
-            "*.16xlarge",
-            "*.18xlarge",
-            "*.24xlarge",
-            "*.32xlarge",
-            "p2.*",
-            "p3.*",
-            "p4.*",
-            "p5.*",
-            "g4dn.8xlarge",
-            "g4dn.12xlarge",
-            "g4dn.16xlarge",
-            "g5.8xlarge",
-            "g5.12xlarge",
-            "g5.16xlarge",
-            "g5.24xlarge",
-            "g5.48xlarge"
-          ]
-        }
-      }
-    },
-    {
       "Sid": "DenyRDSHighCostInstances",
       "Effect": "Deny",
       "Action": [
@@ -378,6 +278,36 @@
             "ml.p4d.24xlarge",
             "ml.p4de.24xlarge",
             "ml.p5.48xlarge"
+          ]
+        }
+      }
+    },
+    {
+      "Sid": "DenyLargeElastiCacheClusters",
+      "Effect": "Deny",
+      "Action": [
+        "elasticache:CreateCacheCluster",
+        "elasticache:CreateReplicationGroup",
+        "elasticache:ModifyCacheCluster",
+        "elasticache:ModifyReplicationGroup"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "ForAnyValue:StringNotLike": {
+          "elasticache:CacheNodeType": [
+            "cache.t2.micro",
+            "cache.t2.small",
+            "cache.t2.medium",
+            "cache.t3.micro",
+            "cache.t3.small",
+            "cache.t3.medium",
+            "cache.t4g.micro",
+            "cache.t4g.small",
+            "cache.t4g.medium",
+            "cache.m5.large",
+            "cache.m5.xlarge",
+            "cache.r5.large",
+            "cache.r5.xlarge"
           ]
         }
       }
